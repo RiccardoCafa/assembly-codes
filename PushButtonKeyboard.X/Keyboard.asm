@@ -1,4 +1,9 @@
-; TODO INSERT INCLUDE CODE HER
+;   Riccardo Cafagna 
+;
+;   Read an input using the keyboard
+;   Start counting with #
+;   Doesn't use TMR0/INT
+;
 
 ; TODO INSERT CONFIG HERE
 #include "p16f877a.inc"

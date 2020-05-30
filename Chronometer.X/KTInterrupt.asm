@@ -1,4 +1,11 @@
 
+;   Riccardo Cafagna 
+;
+;   Read an input using the keyboard
+;   Start counting with * or #
+;   Stop/resume with RB0/INT
+;
+    
 ; TODO INSERT INCLUDE CODE HERE
 #include "p16f877a.inc"
     

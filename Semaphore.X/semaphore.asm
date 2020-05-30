@@ -1,4 +1,13 @@
-#include "p16f877a.inc"
+
+;   Riccardo Cafagna 
+;
+;   3 first PORTB ligths -> green
+;   2 middle PORTB lights -> yellow
+;   3 last PORTB lights -> red
+;   Uses timer interrupt to count
+;
+    
+    #include "p16f877a.inc"
  __CONFIG _FOSC_EXTRC & _WDTE_OFF & _PWRTE_OFF & _BOREN_OFF & _LVP_OFF & _CPD_OFF & _WRT_OFF & _CP_OFF
  
  GPR_VAR    UDATA
