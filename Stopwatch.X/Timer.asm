@@ -1,0 +1,390 @@
+; PIC16F877A Configuration Bit Settings
+
+; Assembly source line config statements
+
+#include "p16f877a.inc"
+; CONFIG
+; __config 0x3F3B
+ __CONFIG _FOSC_EXTRC & _WDTE_OFF & _PWRTE_OFF & _BOREN_OFF & _LVP_OFF & _CPD_OFF & _WRT_OFF & _CP_OFF
+
+BANK0 MACRO 
+    BCF STATUS, RP1
+    BCF STATUS, RP0
+    ENDM
+    
+BANK1 MACRO
+    BCF STATUS, RP1
+    BSF STATUS, RP0
+    ENDM
+    
+BANK2 MACRO
+    BSF STATUS, RP1
+    BCF STATUS, RP0
+    ENDM
+    
+BANK3 MACRO
+    BSF STATUS, RP1
+    BSF STATUS, RP0
+    ENDM
+    
+SHOW9 MACRO VALUE, ADDRESS
+
+    BTFSS VALUE, 0 ; 1001
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSS VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL9
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    
+    ENDM
+    
+SHOW8 MACRO VALUE, ADDRESS
+ 
+    BTFSC VALUE, 0 ; 1000
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSS VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL8
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+SHOW7 MACRO VALUE, ADDRESS
+ 
+    BTFSS VALUE, 0 ; 0111
+    GOTO ADDRESS
+    BTFSS VALUE, 1
+    GOTO ADDRESS
+    BTFSS VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL7
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+SHOW6 MACRO VALUE, ADDRESS
+ 
+    BTFSC VALUE, 0 ; 0110
+    GOTO ADDRESS
+    BTFSS VALUE, 1
+    GOTO ADDRESS
+    BTFSS VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL6
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+SHOW5 MACRO VALUE, ADDRESS
+ 
+    BTFSS VALUE, 0 ; 0101
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSS VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL5
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+SHOW4 MACRO VALUE, ADDRESS
+ 
+    BTFSC VALUE, 0 ; 0100
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSS VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL4
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+        
+SHOW3 MACRO VALUE, ADDRESS
+ 
+    BTFSS VALUE, 0 ; 0011
+    GOTO ADDRESS
+    BTFSS VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL3
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+SHOW2 MACRO VALUE, ADDRESS
+ 
+    BTFSC VALUE, 0 ; 0010
+    GOTO ADDRESS
+    BTFSS VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL2
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+      
+SHOW1 MACRO VALUE, ADDRESS
+ 
+    BTFSS VALUE, 0 ; 0001
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL1
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+          
+SHOW0 MACRO VALUE, ADDRESS
+ 
+    BTFSC VALUE, 0 ; 0000
+    GOTO ADDRESS
+    BTFSC VALUE, 1
+    GOTO ADDRESS
+    BTFSC VALUE, 2
+    GOTO ADDRESS
+    BTFSC VALUE, 3
+    GOTO ADDRESS
+    
+    MOVLW VAL0
+    MOVWF AUXDIS
+    
+    BTFSC POG, 0
+    GOTO PRIMEIRO
+    GOTO SEGUNDO
+    ENDM
+    
+VAL0 EQU B'00111111'
+VAL1 EQU B'00000110'
+VAL2 EQU B'01011011'
+VAL3 EQU B'01001111'
+VAL4 EQU B'01100110'
+VAL5 EQU B'01101101'
+VAL6 EQU B'01111100'
+VAL7 EQU B'00000111'
+VAL8 EQU B'01111111'
+VAL9 EQU B'01100111'
+ 
+; TODO PLACE VARIABLE DEFINITIONS GO HERE
+GPR_VAR        UDATA
+FT1MS		RES        1      ;
+FT250MS		RES        1
+FT1S		RES        1
+CRNT		RES	   1	;
+AUX		RES	   1   
+REG		RES	   1
+VALDIS1		RES	   1
+VALDIS2		RES	   1
+AUXDIS		RES	   1
+POG		RES	   1
+TEMPAO		RES	   1
+;*******************************************************************************
+; Reset Vector
+;*******************************************************************************
+
+RES_VECT  CODE    0x0000            ; processor reset vector
+    GOTO    START                   ; go to beginning of program
+
+; TODO INSERT ISR HERE
+
+MAIN_PROG CODE                      ; let linker place main program
+
+START
+
+    ; TODO Step #5 - Insert Your Program Here
+    BANK1
+    CLRF TRISD
+    CLRF TRISA
+    BANK0
+    
+    ;CALL SHOW9
+    
+    MOVLW B'00000101'
+    MOVWF CRNT
+    
+    MOVLW B'00001001'
+    MOVWF REG
+    
+    MOVLW B'00000000'
+    MOVWF AUX
+    
+MAIN_LOOP
+     
+    
+    MOVF CRNT, W
+    MOVWF AUX
+    
+    MOVLW B'1'
+    MOVWF POG
+    
+    SHOW9 AUX, S8
+    
+PRIMEIRO
+    
+    MOVF AUXDIS
+    MOVWF VALDIS1
+    
+    MOVF REG, W
+    MOVWF AUX
+    
+    MOVLW B'0'
+    MOVWF POG
+    
+    SHOW9 AUX, S8
+    
+SEGUNDO
+    
+    MOVF AUXDIS
+    MOVWF VALDIS2
+    
+    GOTO FINISH
+    
+S8
+    SHOW8 AUX, S7
+S7
+    SHOW7 AUX, S6
+S6
+    SHOW6 AUX, S5
+S5
+    SHOW5 AUX, S4
+S4
+    SHOW4 AUX, S3
+S3
+    SHOW3 AUX, S2
+S2
+    SHOW2 AUX, S1
+S1
+    SHOW1 AUX, S0
+S0
+    SHOW0 AUX, FINISH
+    
+FINISH
+    MOVLW D'250'
+    MOVWF TEMPAO
+    
+    CALL UPDATE_DISPLAY
+    
+    DECFSZ REG, 1
+    
+    GOTO MAIN_LOOP                          ; loop forever
+    GOTO MANAGER_COUNTER
+
+MANAGER_COUNTER
+    
+    DECFSZ CRNT, 1
+    NOP
+    MOVLW VAL0
+    MOVWF VALDIS2
+    MOVLW B'00001001'
+    MOVWF REG
+
+    CALL UPDATE_DISPLAY
+    
+    GOTO MAIN_LOOP
+   
+UPDATE_DISPLAY
+    CALL DIS_2
+    
+    MOVF VALDIS2, W
+    MOVWF PORTD
+    
+    CALL DELAY_1MS
+    CALL DELAY_1MS
+    
+    CALL DIS_1
+    
+    MOVF VALDIS1, W
+    MOVWF PORTD
+    
+    CALL DELAY_1MS
+    CALL DELAY_1MS
+    
+    DECFSZ TEMPAO, 1
+    GOTO UPDATE_DISPLAY
+    RETURN
+    
+DELAY_1MS
+    MOVLW D'165'        ; Var <-- N
+    MOVWF FT1MS
+
+DELAY_LOOP
+    DECFSZ FT1MS, 1    ;1CM ; 0-> 2CM
+    GOTO  DELAY_LOOP ;2CM ;(N-1)*(1CM+2CM) + 2CM = (N-1)*3CM +2CM = (3N-1)*CM
+    ;--              ;CM = 2us; 1000us = 500CM; 500 = 3N-1 => N = 166
+    RETURN
+ 
+DIS_1
+    MOVLW B'00010000'
+    MOVWF  PORTA
+    RETURN
+    
+DIS_2
+    MOVLW B'00100000'
+    MOVWF PORTA
+    RETURN
+    
+    END
