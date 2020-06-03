@@ -28,6 +28,11 @@ DSP2E	EQU	B'00010000'
 DSP3E	EQU	B'00001000'
 DSP4E	EQU	B'00000100'
 	
+DSP1P	EQU	D'5'
+DSP2P	EQU	D'4'
+DSP3P	EQU	D'3'
+DSP4P	EQU	D'2'
+	
 UDIR	EQU	D'0'
 DDIR	EQU	D'1'
 RDIR	EQU	D'2'
@@ -44,6 +49,8 @@ _SW	EQU	D'4'
 _NW	EQU	D'5'
 _C	EQU	D'6'
 _DOT	EQU	D'7'
+	
+TMRVAL  EQU	D'12'
  
 GPR_VAR	UDATA
 DSP1	RES	1
@@ -58,6 +65,9 @@ SNKDSP	RES	1
 DIR	RES	1
 HEAD	RES	1
 VALUE	RES	1
+FOOD	RES	1
+NXTF	RES	1
+AUXC	RES	1
 	
 ;*******************************************************************************
 ; Reset Vector
@@ -70,8 +80,10 @@ RES_VECT  CODE    0x0000
 ; Interrupt Service Routines
 ;*******************************************************************************
 
-ISR       CODE    0x0004
-    RETFIE
+ISR CODE 0X0004
+    BTFSC   INTCON, TMR0IF
+    CALL    RNDFOOD
+RETFIE
 
 ;*******************************************************************************
 ; Functions
@@ -106,14 +118,18 @@ SNK_RST MACRO
     MOVWF   SNKDSP
     BCF	    HEAD, HOR
     BSF	    HEAD, VER
+    MOVLW   B'00100000'
+    MOVWF   NXTF
+    MOVWF   FOOD
     ENDM
 
 SET_VALUE MACRO POS
     CLRF    VALUE
     BSF	    VALUE, POS
     ENDM
-;*******************************************************************************
 
+;***************** MOVE LOGIC ******************
+    
 UP_MANAGER
     CLRF    VALUE
     
@@ -236,9 +252,9 @@ END_RIGHT
 RR_DSP	    ; vai p display a direita
     BTFSS   HEAD, HOR	; se olha p esquerda
     RETURN		; n se move
-    BTFSC   SNKDSP, 5
+    BTFSC   SNKDSP, DSP1P
     MOVLW   DSP4E
-    BTFSS   SNKDSP, 5
+    BTFSS   SNKDSP, DSP1P
     RLF	    SNKDSP, W
     MOVWF   SNKDSP
     GOTO    END_RIGHT
@@ -298,9 +314,9 @@ END_LEFT
 RL_DSP	    ; vai p display a esquerda
     BTFSC   HEAD, HOR	; se olha p direita
     RETURN		; n se move
-    BTFSC   SNKDSP, 2
+    BTFSC   SNKDSP, DSP4P
     MOVLW   DSP1E
-    BTFSS   SNKDSP, 2
+    BTFSS   SNKDSP, DSP4P
     RRF	    SNKDSP, W
     MOVWF   SNKDSP
     GOTO    END_LEFT
@@ -358,18 +374,116 @@ SNKMOV
     CLRF    DSP3
     CLRF    DSP4
     
-    BTFSC   SNKDSP, 5
+    BTFSC   SNKDSP, DSP1P
+    GOTO    MNG_DSP1
+    
+    BTFSC   SNKDSP, DSP2P
+    GOTO    MNG_DSP2
+    
+    BTFSC   SNKDSP, DSP3P
+    GOTO    MNG_DSP3
+    
+    BTFSC   SNKDSP, DSP4P
+    GOTO    MNG_DSP4
+    
+    RETURN
+    
+MNG_DSP1
     MOVWF   DSP1
+    BTFSC   FOOD, DSP1P
+    CALL    GETFOOD
+    RETURN
     
-    BTFSC   SNKDSP, 4
+MNG_DSP2
     MOVWF   DSP2
+    BTFSC   FOOD, DSP2P
+    CALL    GETFOOD
+    RETURN
     
-    BTFSC   SNKDSP, 3
+MNG_DSP3
     MOVWF   DSP3
+    BTFSC   FOOD, DSP3P
+    CALL    GETFOOD
+    RETURN
     
-    BTFSC   SNKDSP, 2
+MNG_DSP4
     MOVWF   DSP4
+    BTFSC   FOOD, DSP4P
+    CALL    GETFOOD
+    RETURN
     
+;***************** FOOD LOGIC ******************
+SHOWFOOD
+    BTFSC   FOOD, DSP1P
+    BSF	    DSP1, 7
+    
+    BTFSC   FOOD, DSP2P
+    BSF	    DSP2, 7
+    
+    BTFSC   FOOD, DSP3P
+    BSF	    DSP3, 7
+    
+    BTFSC   FOOD, DSP4P
+    BSF	    DSP4, 7
+    RETURN
+    
+CONFIG_INTER
+    BANK1
+    CLRF    TRISD
+    
+    BCF	    OPTION_REG, PSA; HABILITA PSA PRO TIMER 0
+    BSF	    OPTION_REG, PS2
+    BSF	    OPTION_REG, PS1
+    BSF	    OPTION_REG, PS0
+    BANK0
+    
+    MOVLW   D'12'
+    MOVWF   TMR0
+    
+    MOVLW   TMRVAL
+    MOVWF   AUXC
+ 
+    BCF	    INTCON, TMR0IF
+    BSF	    INTCON, TMR0IE
+    BSF	    INTCON, GIE
+    RETURN
+    
+RNDFOOD
+    BCF	    INTCON, TMR0IF
+    
+    RRF	    NXTF, 1
+    ; 00 XXXX 10
+    BTFSC   NXTF, 1
+    CALL    CEILFOOD
+    BTFSC   NXTF, 0
+    CALL    CEILFOOD
+    BTFSC   NXTF, 7
+    CALL    CEILFOOD
+    BTFSC   NXTF, 6
+    CALL    CEILFOOD
+    
+    ;MOVFW   FOOD
+    ;ANDLW   B'00000000'
+    ;BTFSS   STATUS, Z
+    ;CALL    GETFOOD
+    
+    DECFSZ  AUXC
+    RETURN
+    
+    MOVLW   TMRVAL
+    MOVWF   AUXC
+    
+    RETURN
+
+CEILFOOD
+    CLRF    NXTF
+    BSF	    NXTF, DSP1P
+    RETURN
+    
+GETFOOD
+    MOVFW   NXTF
+    MOVWF   FOOD
+    CALL    CEILFOOD
     RETURN
     
 DISPLAY
@@ -484,6 +598,8 @@ MAIN_PROG CODE
 START
     SNK_RST
     
+    CALL CONFIG_INTER
+    
     CLRF    DSP1
     CLRF    DSP2
     CLRF    DSP3
@@ -518,10 +634,10 @@ KBRD_LOOP
     
 DSP_LOOP
     CALL    DISPLAY
+    CALL    SHOWFOOD
     DECFSZ  DSPIT
     GOTO    DSP_LOOP
     MOVLW   D'16'
     MOVWF   DSPIT
     GOTO    KBRD_LOOP
-    
     END
