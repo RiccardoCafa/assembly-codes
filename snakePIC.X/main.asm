@@ -11,7 +11,7 @@
 ;*******************************************************************************
 
 #include    "p16f877a.inc"
-#include    "snake_pic.inc"
+    
 ;*******************************************************************************
 ; Configuration Word Setup
 ;*******************************************************************************
@@ -23,18 +23,42 @@
 ; Variable Definitions
 ;*******************************************************************************
 
-GPR_VAR	    UDATA
-SNKDSP1	    RES	    1
-SNKDSP2	    RES	    1
-SNKDSP3	    RES	    1
-SNKDSP4	    RES	    1
-DSPIT	    RES	    1
-KBRDIT	    RES	    1
-_1MS	    RES	    1
-_SNKPOS	    RES	    1
-_SNKDIS	    RES	    1
-_DIR	    RES	    1
-
+DSP1E	EQU	B'00100000'
+DSP2E	EQU	B'00010000'
+DSP3E	EQU	B'00001000'
+DSP4E	EQU	B'00000100'
+	
+UDIR	EQU	D'0'
+DDIR	EQU	D'1'
+RDIR	EQU	D'2'
+LDIR	EQU	D'3'
+	
+VER	EQU	D'0'
+HOR	EQU	D'1'
+	
+_N	EQU	D'0'
+_NE	EQU	D'1'
+_SE	EQU	D'2'
+_S	EQU	D'3'
+_SW	EQU	D'4'
+_NW	EQU	D'5'
+_C	EQU	D'6'
+_DOT	EQU	D'7'
+ 
+GPR_VAR	UDATA
+DSP1	RES	1
+DSP2	RES	1
+DSP3	RES	1
+DSP4	RES	1
+DSPIT	RES	1
+KBRDIT	RES	1
+_1MS	RES	1
+SNKPOS	RES	1
+SNKDSP	RES	1
+DIR	RES	1
+HEAD	RES	1
+VALUE	RES	1
+	
 ;*******************************************************************************
 ; Reset Vector
 ;*******************************************************************************
@@ -52,6 +76,7 @@ ISR       CODE    0x0004
 ;*******************************************************************************
 ; Functions
 ;*******************************************************************************
+    
 BANK0	MACRO ; 00
     BCF	    STATUS, RP1
     BCF	    STATUS, RP0
@@ -72,196 +97,278 @@ BANK3	MACRO ; 11
     BSF	    STATUS, RP0
     ENDM
     
-SET_PORTD MACRO VALUE
-    MOVFW VALUE
-    MOVWF PORTD
+SNK_RST MACRO
+    ;MOVLW   B'00000000'
+    ;MOVWF   SNKPOS
+    CLRF    SNKPOS
+    BSF	    SNKPOS, _C
+    MOVLW   DSP3E
+    MOVWF   SNKDSP
+    BCF	    HEAD, HOR
+    BSF	    HEAD, VER
     ENDM
-    
-SNAKE_RESET MACRO
-    MOVLW B'00000010'
-    MOVWF _SNKPOS
-    MOVLW B'00000100'
-    MOVWF _SNKDIS
+
+SET_VALUE MACRO POS
+    CLRF    VALUE
+    BSF	    VALUE, POS
     ENDM
-    
-SNAKE_GO_DIS4 MACRO
-    MOVLW B'00001000'
-    MOVWF _SNKDIS
-    ENDM
-SNAKE_GO_DIS3 MACRO
-    MOVLW B'00000100'
-    MOVWF _SNKDIS
-    ENDM
-SNAKE_GO_DIS2 MACRO
-    MOVLW B'00000010'
-    MOVWF _SNKDIS
-    ENDM
-SNAKE_GO_DIS1 MACRO
-    MOVLW B'00000001'
-    MOVWF _SNKDIS
-    ENDM
-    
+;*******************************************************************************
+
 UP_MANAGER
+    CLRF    VALUE
     
-    BTFSC _SNKPOS, 0 ; A
-    GOTO KBRD_LOOP ; NAO DA PRA IR PRA CIMA
-    BTFSC _SNKPOS, 1 ; B
-    MOVLW B'00000001'
-    BTFSC _SNKPOS, 2 ; C
-    MOVLW B'00000010'
-    BTFSC _SNKPOS, 3 ; D
-    MOVLW B'00010000'
-    BTFSC _SNKPOS, 4 ; E
-    MOVLW B'00100000'
-    BTFSC _SNKPOS, 5 ; F
-    MOVLW B'00000001'
-    BTFSC _SNKPOS, 6 ; G
-    MOVLW B'00000010'
-    
-    MOVWF _SNKPOS
+    BTFSC   SNKPOS, _N
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _NE
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _SE
+    GOTO    UP_SE
+    BTFSC   SNKPOS, _S
+    GOTO    UP_S
+    BTFSC   SNKPOS, _SW
+    GOTO    UP_SW
+    BTFSC   SNKPOS, _NW
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _C
+    GOTO    UP_C
+END_UP
+    BSF	    HEAD, VER
+    MOVFW   VALUE
+    MOVWF   SNKPOS
     RETURN
-    
+
+UP_SE	    ; quer ir p cima, estando em sudeste (OK)
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _NE	; vai p nordeste
+    BTFSS   HEAD, VER	; se olha p baixo
+    GOTO    KBRD_LOOP	; n se move
+    GOTO    END_UP
+UP_S	    ; quer ir p cima, estando em sul (OK)
+    BTFSC   HEAD, HOR	; se olha p direita
+    BSF	    VALUE, _SE	; vai p sudeste
+    BTFSS   HEAD, HOR	; se olha p esquerda
+    BSF	    VALUE, _SW	; vai p sudoeste
+    GOTO    END_UP
+UP_SW	    ; quer ir p cima, estando em sudoeste (OK)
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _NW	; vai p noroeste
+    BTFSS   HEAD, VER	; se olha p baixo
+    GOTO    KBRD_LOOP	; n se move
+    GOTO    END_UP
+UP_C	    ; quer ir p cima, estando em centro (OK)
+    BTFSC   HEAD, HOR	; se olha p direita
+    BSF	    VALUE, _NE	; vai p nordeste
+    BTFSS   HEAD, HOR	; se olha p esquerda
+    BSF	    VALUE, _NW	; vai p noroeste
+    GOTO    END_UP
+ 
 DOWN_MANAGER
-    BTFSC _SNKPOS, 0 ; A
-    MOVLW B'00000010'
-    BTFSC _SNKPOS, 1 ; B 
-    MOVLW B'00000100'
-    BTFSC _SNKPOS, 2 ; C
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 3 ; D 
-    GOTO KBRD_LOOP ; NAO DA PRA IR BAIXO
-    BTFSC _SNKPOS, 4 ; E
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 5 ; F
-    MOVLW B'00010000'
-    BTFSC _SNKPOS, 6 ; G
-    MOVLW B'00000100'
+    CLRF    VALUE
     
-    MOVWF _SNKPOS
+    BTFSC   SNKPOS, _N
+    GOTO    DOWN_N
+    BTFSC   SNKPOS, _NE
+    GOTO    DOWN_NE
+    BTFSC   SNKPOS, _SE
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _S
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _SW
+    GOTO    KBRD_LOOP
+    BTFSC   SNKPOS, _NW
+    GOTO    DOWN_NW
+    BTFSC   SNKPOS, _C
+    GOTO    DOWN_C
+END_DOWN
+    BCF	    HEAD, VER
+    MOVFW   VALUE
+    MOVWF   SNKPOS
     RETURN
-    
-LEFT_MANAGER
-    BTFSC _SNKPOS, 0 ; A
-    GOTO LEFT_MANAGER_DIS
-    BTFSC _SNKPOS, 1 ; B 
-    MOVLW B'01000000'
-    BTFSC _SNKPOS, 2 ; C
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 3 ; D 
-    GOTO LEFT_MANAGER_DIS
-    BTFSC _SNKPOS, 4 ; E
-    GOTO LEFT_MANAGER_DIS
-    BTFSC _SNKPOS, 5 ; F
-    GOTO LEFT_MANAGER_DIS
-    BTFSC _SNKPOS, 6 ; G
-    GOTO LEFT_MANAGER_DIS
-    
-    MOVWF _SNKPOS
-    RETURN
-    
-LEFT_MANAGER_DIS
-    BTFSC _SNKDIS, 3
-    GOTO KBRD_LOOP
-    
-    RLF _SNKDIS, 1
-    
-    BTFSC _SNKPOS, 0 ; A
-    RETURN
-    BTFSC _SNKPOS, 3 ; D
-    RETURN
-    BTFSC _SNKPOS, 4 ; E
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 5 ; F
-    MOVLW B'01000000'
-    BTFSC _SNKPOS, 6 ; G
-    RETURN
-    
-    MOVWF _SNKPOS
-    
-    RETURN
-    
+
+DOWN_N	    ; quer ir p baixo, estando em norte
+    BTFSC   HEAD, HOR	; se olha p direita
+    BSF	    VALUE, _NE	; vai p nordeste
+    BTFSS   HEAD, HOR	; se olha p esquerda
+    BSF	    VALUE, _NW	; vai p noroeste
+    GOTO    END_DOWN
+DOWN_NE	    ; quer ir p baixo, estando em nordeste
+    BTFSC   HEAD, VER	; se olha p cima
+    GOTO    KBRD_LOOP	; n se move
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _SE	; vai p sudeste
+    GOTO    END_DOWN
+DOWN_NW	    ; quer ir p baixo, estando em noroeste
+    BTFSC   HEAD, VER	; se olha p cima
+    GOTO    KBRD_LOOP	; n se move
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _SW	; vai p sudoeste
+    GOTO    END_DOWN
+DOWN_C	    ; quer ir p baixo, estando em centro
+    BTFSC   HEAD, HOR	; se olha p direita
+    BSF	    VALUE, _SE	; vai p sudeste
+    BTFSS   HEAD, HOR	; se olha p esquerda
+    BSF	    VALUE, _SW	; vai p sudoeste
+    GOTO    END_DOWN
+
 RIGHT_MANAGER
-    BTFSC _SNKPOS, 0 ; A
-    GOTO RIGHT_MANAGER_DIS
-    BTFSC _SNKPOS, 1 ; B 
-    GOTO RIGHT_MANAGER_DIS
-    BTFSC _SNKPOS, 2 ; C
-    GOTO RIGHT_MANAGER_DIS
-    BTFSC _SNKPOS, 3 ; D 
-    GOTO RIGHT_MANAGER_DIS
-    BTFSC _SNKPOS, 4 ; E
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 5 ; F
-    MOVLW B'01000000'
-    BTFSC _SNKPOS, 6 ; G
-    GOTO RIGHT_MANAGER_DIS
+    CLRF    VALUE
     
-    MOVWF _SNKPOS
+    BTFSC   SNKPOS, _N
+    GOTO    JUST_RIGHT
+    BTFSC   SNKPOS, _NE
+    GOTO    RIGHT_NE
+    BTFSC   SNKPOS, _SE
+    GOTO    RIGHT_SE
+    BTFSC   SNKPOS, _S
+    GOTO    JUST_RIGHT
+    BTFSC   SNKPOS, _SW
+    GOTO    RIGHT_SW
+    BTFSC   SNKPOS, _NW
+    GOTO    RIGHT_NW
+    BTFSC   SNKPOS, _C
+    GOTO    JUST_RIGHT
+END_RIGHT
+    BSF	    HEAD, HOR
+    MOVFW   VALUE
+    MOVWF   SNKPOS
     RETURN
+
+RR_DSP	    ; vai p display a direita
+    BTFSS   HEAD, HOR	; se olha p esquerda
+    RETURN		; n se move
+    BTFSC   SNKDSP, 5
+    MOVLW   DSP4E
+    BTFSS   SNKDSP, 5
+    RLF	    SNKDSP, W
+    MOVWF   SNKDSP
+    GOTO    END_RIGHT
+
+RIGHT_NE    ; quer ir p direita, estando em nordeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _N	; vai p norte
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _C	; vai p centro
+    GOTO    RR_DSP	; vai p display a direita
+RIGHT_SE    ; quer ir p direita, estando em sudeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _C	; vai p centro
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _S	; vai p sul
+    GOTO    RR_DSP	; vai p display a direita
+RIGHT_SW    ; quer ir p direita, estando em sudoeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _C	; vai p centro
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _S	; vai p sul
+    GOTO    END_RIGHT
+RIGHT_NW    ; quer ir p direita, estando em noroeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _N	; vai p norte
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _C	; vai p centro
+    GOTO    END_RIGHT
+JUST_RIGHT
+    MOVFW   SNKPOS
+    MOVWF   VALUE
+    GOTO    RR_DSP
+
+LEFT_MANAGER
+    CLRF   VALUE
     
-RIGHT_MANAGER_DIS
-    BTFSC _SNKDIS, 0
-    GOTO KBRD_LOOP
-    
-    RRF _SNKDIS, 1
-    
-    BTFSC _SNKPOS, 0 ; A
+    BTFSC   SNKPOS, _N
+    GOTO    JUST_LEFT
+    BTFSC   SNKPOS, _NE
+    GOTO    LEFT_NE
+    BTFSC   SNKPOS, _SE
+    GOTO    LEFT_SE
+    BTFSC   SNKPOS, _S
+    GOTO    JUST_LEFT
+    BTFSC   SNKPOS, _SW
+    GOTO    LEFT_SW
+    BTFSC   SNKPOS, _NW
+    GOTO    LEFT_NW
+    BTFSC   SNKPOS, _C
+    GOTO    JUST_LEFT
+END_LEFT
+    BCF	    HEAD, HOR
+    MOVFW   VALUE
+    MOVWF   SNKPOS
     RETURN
-    BTFSC _SNKPOS, 1 ; B 
-    MOVLW B'01000000'
-    BTFSC _SNKPOS, 2 ; C
-    MOVLW B'00001000'
-    BTFSC _SNKPOS, 3 ; D 
-    RETURN
-    BTFSC _SNKPOS, 6 ; G
-    RETURN
+
+RL_DSP	    ; vai p display a esquerda
+    BTFSC   HEAD, HOR	; se olha p direita
+    RETURN		; n se move
+    BTFSC   SNKDSP, 2
+    MOVLW   DSP1E
+    BTFSS   SNKDSP, 2
+    RRF	    SNKDSP, W
+    MOVWF   SNKDSP
+    GOTO    END_LEFT
+
+LEFT_NE    ; quer ir p esquerda, estando em nordeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _N	; vai p norte
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _C	; vai p centro
+    GOTO    END_LEFT
+LEFT_SE    ; quer ir p esquerda, estando em sudeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _C	; vai p centro
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _S	; vai p sul
+    GOTO    END_LEFT
+LEFT_SW    ; quer ir p esquerda, estando em sudoeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _C	; vai p centro
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _S	; vai p sul
+    GOTO    RL_DSP	; vai p display a esquerda
+LEFT_NW    ; quer ir p esquerda, estando em noroeste
+    BTFSC   HEAD, VER	; se olha p cima
+    BSF	    VALUE, _N	; vai p norte
+    BTFSS   HEAD, VER	; se olha p baixo
+    BSF	    VALUE, _C	; vai p centro
+    GOTO    RL_DSP	; vai p display a esquerda
+JUST_LEFT
+    MOVFW   SNKPOS
+    MOVWF   VALUE
+    GOTO    RL_DSP
     
-    MOVWF _SNKPOS
-    
-    RETURN
-    
-SNAKE_MOVE
-    
-    ; QUAL DIRECAO ELE TA QUERENDO IR
-    ; CHECAR ONDE ELE ESTÁ
-	; VERIFICAR SE É POSSIVEL
-	    ; CASO SIM, MOVER
-	    ; CASO NAO, RETORNE
-    
+SNKMOV
     ; UP
-    BTFSC _DIR, 0
-    CALL UP_MANAGER
+    BTFSC   DIR, UDIR
+    CALL    UP_MANAGER
     
     ; DOWN
-    BTFSC _DIR, 1
-    CALL DOWN_MANAGER
+    BTFSC   DIR, DDIR
+    CALL    DOWN_MANAGER
     
     ; RIGHT
-    BTFSC _DIR, 2
-    CALL RIGHT_MANAGER
+    BTFSC   DIR, RDIR
+    CALL    RIGHT_MANAGER
     
     ; LEFT
-    BTFSC _DIR, 3
-    CALL LEFT_MANAGER
+    BTFSC   DIR, LDIR
+    CALL    LEFT_MANAGER
 
-    MOVFW _SNKPOS
+    MOVFW   SNKPOS
     
-    CLRF SNKDSP1
-    CLRF SNKDSP2
-    CLRF SNKDSP3
-    CLRF SNKDSP4
+    CLRF    DSP1
+    CLRF    DSP2
+    CLRF    DSP3
+    CLRF    DSP4
     
-    BTFSC _SNKDIS, 0
-    MOVWF SNKDSP1
+    BTFSC   SNKDSP, 5
+    MOVWF   DSP1
     
-    BTFSC _SNKDIS, 1
-    MOVWF SNKDSP2
+    BTFSC   SNKDSP, 4
+    MOVWF   DSP2
     
-    BTFSC _SNKDIS, 2
-    MOVWF SNKDSP3
+    BTFSC   SNKDSP, 3
+    MOVWF   DSP3
     
-    BTFSC _SNKDIS, 3
-    MOVWF SNKDSP4
+    BTFSC   SNKDSP, 2
+    MOVWF   DSP4
     
     RETURN
     
@@ -273,41 +380,36 @@ DISPLAY
     
     MOVLW   DSP1E
     MOVWF   PORTA
-    MOVFW   SNKDSP1
+    MOVFW   DSP1
     MOVWF   PORTD
     CALL    DELAY_2MS
     
     MOVLW   DSP2E
     MOVWF   PORTA
-    MOVFW   SNKDSP2
+    MOVFW   DSP2
     MOVWF   PORTD
     CALL    DELAY_2MS
     
     MOVLW   DSP3E
     MOVWF   PORTA
-    MOVFW   SNKDSP3
+    MOVFW   DSP3
     MOVWF   PORTD
     CALL    DELAY_2MS
     
     MOVLW   DSP4E
     MOVWF   PORTA
-    SET_PORTD   SNKDSP4
+    MOVFW   DSP4
+    MOVWF   PORTD
     CALL    DELAY_2MS
-    
-    
     RETURN
-    ;     RB0 RB1 RB2
-    ; RD3  1   2   3
-    ; RD2  4   5   6
-    ; RD1  7   8   9
-    ; RD0  *   0   #
+    
 KBRD_READ
     CALL    KBRD_CONFIG
     
     BCF	    PORTB, RB0
     CALL    DELAY_2MS
     BTFSS   TRISD, RD2	; left
-    CALL    LEFT
+    CALL    PRESS_LEFT
     CALL    DELAY_2MS
     BSF	    PORTB, RB0
     CALL    DELAY_2MS
@@ -315,52 +417,49 @@ KBRD_READ
     BCF	    PORTB, RB1
     CALL    DELAY_2MS
     BTFSS   TRISD, RD1	; down
-    CALL    DOWN
+    CALL    PRESS_DOWN
     CALL    DELAY_2MS
     BTFSS   TRISD, RD3	; up
-    CALL    UP
+    CALL    PRESS_UP
     BSF	    PORTB, RB1
     CALL    DELAY_2MS
     
     BCF	    PORTB, RB2
     CALL    DELAY_2MS
     BTFSS   TRISD, RD2	; right
-    CALL    RIGHT
+    CALL    PRESS_RIGHT
     BSF	    PORTB, RB2
     CALL    DELAY_2MS
     RETURN
 
-UP
-    MOVLW B'00000001'
-    MOVWF _DIR
-    CALL SNAKE_MOVE
+PRESS_UP
+    CLRF    DIR
+    BSF	    DIR, UDIR
+    CALL    SNKMOV
     RETURN
-    
-DOWN
-    MOVLW B'00000010'
-    MOVWF _DIR
-    CALL SNAKE_MOVE
+PRESS_DOWN
+    CLRF    DIR
+    BSF	    DIR, DDIR
+    CALL    SNKMOV
     RETURN
-    
-RIGHT
-    MOVLW B'00000100'
-    MOVWF _DIR
-    CALL SNAKE_MOVE
+PRESS_RIGHT
+    CLRF    DIR
+    BSF	    DIR, RDIR
+    CALL    SNKMOV
     RETURN
-    
-LEFT
-    MOVLW B'00001000'
-    MOVWF _DIR
-    CALL SNAKE_MOVE
+PRESS_LEFT
+    CLRF    DIR
+    BSF	    DIR, LDIR
+    CALL    SNKMOV
     RETURN
     
 KBRD_CONFIG
     BANK1
-    CLRF TRISB
-    MOVLW B'00001111'
-    MOVWF TRISD
-    MOVLW B'00001111'
-    MOVWF TRISA
+    CLRF    TRISB
+    MOVLW   B'00001111'
+    MOVWF   TRISD
+    MOVLW   B'00001111'
+    MOVWF   TRISA
     BANK0
     RETURN
     
@@ -383,16 +482,26 @@ DELAY_LOOP
 MAIN_PROG CODE
 
 START
+    SNK_RST
     
-    SNAKE_RESET
+    CLRF    DSP1
+    CLRF    DSP2
+    CLRF    DSP3
+    CLRF    DSP4
     
-    CLRF    SNKDSP1
-    CLRF    SNKDSP2
-    CLRF    SNKDSP3
-    CLRF    SNKDSP4
+    MOVFW   SNKPOS
     
-    MOVFW   _SNKPOS
-    MOVWF   SNKDSP3
+    BTFSC   SNKDSP, 5
+    MOVWF   DSP1
+    
+    BTFSC   SNKDSP, 4
+    MOVWF   DSP2
+    
+    BTFSC   SNKDSP, 3
+    MOVWF   DSP3
+    
+    BTFSC   SNKDSP, 2
+    MOVWF   DSP4
     
     MOVLW   D'1'
     MOVWF   KBRDIT
