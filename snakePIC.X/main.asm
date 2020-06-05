@@ -23,9 +23,13 @@
 ; Variable Definitions
 ;*******************************************************************************
 
+; Byte to set display 4
 DSP4E	EQU	B'00100000'
+; Byte to set display 3
 DSP3E	EQU	B'00010000'
+; Byte to set display 2
 DSP2E	EQU	B'00001000'
+; Byte to set display 1
 DSP1E	EQU	B'00000100'
 	
 UDIR	EQU	D'0'
@@ -33,42 +37,75 @@ DDIR	EQU	D'1'
 RDIR	EQU	D'2'
 LDIR	EQU	D'3'
 	
+; Bit display 1
 DSP1P    EQU    D'2'
+; Bit display 2
 DSP2P    EQU    D'3'
+; Bit display 3
 DSP3P    EQU    D'4'
+; Bit display 4
 DSP4P    EQU    D'5'
 	
+; Timer to set interrupt timer
 TMRVAL  EQU    D'12'
     
+; Bit - 0 if looking down, 1 if looking up
 VER	EQU	D'0'
+; Bit - 0 if looking right, 1 if looking left
 HOR	EQU	D'1'
 	
+; North display position
 _N	EQU	D'0'
+; North East display position
 _NE	EQU	D'1'
+; South East display position
 _SE	EQU	D'2'
+; South display position
 _S	EQU	D'3'
+; South West display position
 _SW	EQU	D'4'
+; North West display position
 _NW	EQU	D'5'
+; Center display position
 _C	EQU	D'6'
+; Dot (food) display position
 _DOT	EQU	D'7'
  
+; Varaibles declaration
 GPR_VAR	UDATA
+; Byte to be set on PORTD for display 1
 DSP1	RES	1
+; Byte to be set on PORTD for display 2
 DSP2	RES	1
+; Byte to be set on PORTD for display 3
 DSP3	RES	1
+; Byte to be set on PORTD for display 4
 DSP4	RES	1
+; Iterator to update DSPIT times the display
 DSPIT	RES	1
+; Iterator to update KBRDIT times the display
 KBRDIT	RES	1
+; Variable to make 1MS delay
 _1MS	RES	1
+; The head snake position
 SNKPOS0	RES	1
+; The tail snake position
 SNKPOS1	RES	1
+; The head snake display bit
 SNKDSP0	RES	1
+; The tail snake display bit
 SNKDSP1	RES	1
+; Which 'arrow' direction the player has pressed
 DIR	RES	1
+; The head byte where the snake is looking
 HEAD	RES	1
+; A temporary variable
 VALUE	RES	1
+; The food display position
 FOOD    RES	1
+; The next food value to be setted
 NXTF    RES	1
+; A auxiliary counter for timer interruption
 AUXC    RES	1
 	
 ;*******************************************************************************
@@ -83,7 +120,9 @@ RES_VECT  CODE    0x0000
 ;*******************************************************************************
 
 ISR       CODE    0x0004
+    ; Check if the timer interruption flag is setted
     BTFSC   INTCON, TMR0IF
+    ; Then get a random food value to NXTF
     CALL    RNDFOOD
     RETFIE
 
@@ -91,26 +130,33 @@ ISR       CODE    0x0004
 ; Functions
 ;*******************************************************************************
     
-BANK0	MACRO ; 00
+; Bank functions set
+BANK0	MACRO ; Bank 0 - 00
     BCF	    STATUS, RP1
     BCF	    STATUS, RP0
     ENDM
     
-BANK1	MACRO ; 01
+BANK1	MACRO ; Bank 1 - 01
     BCF	    STATUS, RP1
     BSF	    STATUS, RP0
     ENDM
     
+; Resets snake values
 SNK_RST MACRO
+    ; Clear snake head position and set initial value
     CLRF    SNKPOS0
     BSF	    SNKPOS0, _N
+    ; Clear snake tail position and set initial value
     CLRF    SNKPOS1
     BSF	    SNKPOS1, _NW
+    ; Set the head and tail display to be the first
     MOVLW   DSP1E
     MOVWF   SNKDSP0
     MOVWF   SNKDSP1
+    ; Set the head to be looking at south east
     BSF	    HEAD, HOR
     BCF	    HEAD, VER
+    ; Set a initial value for the food variables
     MOVLW   B'00100000'
     MOVWF   NXTF
     MOVWF   FOOD
@@ -118,12 +164,14 @@ SNK_RST MACRO
     
 ;*******************************************************************************
 
+; Set the snake position with value setted regards to the display
 SET_POS
     MOVFW   SNKPOS0
     MOVWF   SNKPOS1
     MOVFW   VALUE
     MOVWF   SNKPOS0
     RETURN
+; Set the display to the tail with the value of the head display
 SET_DSP
     MOVFW   SNKDSP0
     MOVWF   SNKDSP1
@@ -133,55 +181,58 @@ SET_DSP
 ; move logic
 ;*******************************************************************************
     
+; Manages the up event
 UP_MANAGER
+    ; Clear the temporary value
     CLRF    VALUE
     
+    ; Check the snake position
     BTFSC   SNKPOS0, _N
-    GOTO    KBRD_LOOP
+    GOTO    KBRD_LOOP	; There's nothing up there, go back to loop
     BTFSC   SNKPOS0, _NE
-    GOTO    KBRD_LOOP
+    GOTO    KBRD_LOOP	; There's nothing up there, go back to loop
     BTFSC   SNKPOS0, _SE
-    GOTO    UP_SE
+    GOTO    UP_SE	; Check if the snake can go to South East
     BTFSC   SNKPOS0, _S
-    GOTO    UP_S
+    GOTO    UP_S	; Check if the snake can go to South
     BTFSC   SNKPOS0, _SW
-    GOTO    UP_SW
+    GOTO    UP_SW	; Check if the snake can go to South West
     BTFSC   SNKPOS0, _NW
-    GOTO    KBRD_LOOP
+    GOTO    KBRD_LOOP	; There's nothing up there, go back to loop
     BTFSC   SNKPOS0, _C
-    GOTO    UP_C
-END_UP
-    BSF	    HEAD, VER
-    CALL    SET_POS
-    CALL    SET_DSP
+    GOTO    UP_C	; Check if the snake can go to the Center
+END_UP			; Finalize the up movement
+    BSF	    HEAD, VER	; Set the head to be looking upward
+    CALL    SET_POS	; Set the position
+    CALL    SET_DSP	; Set the tail display
     RETURN
 
-UP_SE	    ; quer ir p cima, estando em sudeste (OK)
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _NE	;   vai p nordeste
-    BTFSS   HEAD, VER	; se olha p baixo
-    GOTO    KBRD_LOOP	;   n se move
+UP_SE			; Trying to go up to South East
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _NE	;   then go to North East
+    BTFSS   HEAD, VER	; else if looking downward
+    GOTO    KBRD_LOOP	;   don't move
+    GOTO    END_UP	; Finalize movement
+UP_S			; Trying to go up to South
+    BTFSC   HEAD, HOR	; if looking at East
+    BSF	    VALUE, _SE	;   go to South East
+    BTFSS   HEAD, HOR	; if looking at West
+    BSF	    VALUE, _SW	;   go to South West
     GOTO    END_UP
-UP_S	    ; quer ir p cima, estando em sul (OK)
-    BTFSC   HEAD, HOR	; se olha p direita
-    BSF	    VALUE, _SE	;   vai p sudeste
-    BTFSS   HEAD, HOR	; se olha p esquerda
-    BSF	    VALUE, _SW	;   vai p sudoeste
-    GOTO    END_UP
-UP_SW	    ; quer ir p cima, estando em sudoeste (OK)
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _NW	;   vai p noroeste
-    BTFSS   HEAD, VER	; se olha p baixo
-    GOTO    KBRD_LOOP	;   n se move
-    GOTO    END_UP
-UP_C	    ; quer ir p cima, estando em centro (OK)
-    BTFSC   HEAD, HOR	; se olha p direita
-    BSF	    VALUE, _NE	;   vai p nordeste
-    BTFSS   HEAD, HOR	; se olha p esquerda
-    BSF	    VALUE, _NW	;   vai p noroeste
-    GOTO    END_UP
+UP_SW			; Trying to go up to South West
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _NW	;   go to North West
+    BTFSS   HEAD, VER	; else if looking downward
+    GOTO    KBRD_LOOP	;   don't move
+    GOTO    END_UP	; Finalize
+UP_C			; Trying to go up to Center
+    BTFSC   HEAD, HOR	; if looking at East
+    BSF	    VALUE, _NE	;   go to North East
+    BTFSS   HEAD, HOR	; else if looking at West
+    BSF	    VALUE, _NW	;   go to North West
+    GOTO    END_UP	; Finalize  
  
-DOWN_MANAGER
+DOWN_MANAGER ; Same Logic of Up, however for the down movement
     CLRF    VALUE
     
     BTFSC   SNKPOS0, _N
@@ -204,94 +255,96 @@ END_DOWN
     CALL    SET_DSP
     RETURN
 
-DOWN_N	    ; quer ir p baixo, estando em norte
-    BTFSC   HEAD, HOR	; se olha p direita
-    BSF	    VALUE, _NE	;   vai p nordeste
-    BTFSS   HEAD, HOR	; se olha p esquerda
-    BSF	    VALUE, _NW	;   vai p noroeste
-    GOTO    END_DOWN
-DOWN_NE	    ; quer ir p baixo, estando em nordeste
-    BTFSC   HEAD, VER	; se olha p cima
-    GOTO    KBRD_LOOP	;   n se move
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _SE	;   vai p sudeste
-    GOTO    END_DOWN
-DOWN_NW	    ; quer ir p baixo, estando em noroeste
-    BTFSC   HEAD, VER	; se olha p cima
-    GOTO    KBRD_LOOP	;   n se move
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _SW	;   vai p sudoeste
-    GOTO    END_DOWN
-DOWN_C	    ; quer ir p baixo, estando em centro
-    BTFSC   HEAD, HOR	; se olha p direita
-    BSF	    VALUE, _SE	;   vai p sudeste
-    BTFSS   HEAD, HOR	; se olha p esquerda
-    BSF	    VALUE, _SW	;   vai p sudoeste
-    GOTO    END_DOWN
+DOWN_N			; Trying to go down at North
+    BTFSC   HEAD, HOR	; if looking East
+    BSF	    VALUE, _NE	;   go to North East
+    BTFSS   HEAD, HOR	; else if looking West
+    BSF	    VALUE, _NW	;   go to North West
+    GOTO    END_DOWN	; Finalize
+DOWN_NE			; Trying to go down at North East
+    BTFSC   HEAD, VER	; if looking upward
+    GOTO    KBRD_LOOP	;   don't move
+    BTFSS   HEAD, VER	; else if looking downward
+    BSF	    VALUE, _SE	;   go to South East
+    GOTO    END_DOWN	; Finalize
+DOWN_NW			; Trying to go down at North West
+    BTFSC   HEAD, VER	; if looking upward
+    GOTO    KBRD_LOOP	;   don't move
+    BTFSS   HEAD, VER	; else if looking downward
+    BSF	    VALUE, _SW	;   go to South West
+    GOTO    END_DOWN	; Finalize
+DOWN_C			; Trying to go down at Center
+    BTFSC   HEAD, HOR	; if looking East
+    BSF	    VALUE, _SE	;   go to South East
+    BTFSS   HEAD, HOR	; else if looking West
+    BSF	    VALUE, _SW	;   go to South West
+    GOTO    END_DOWN	; Finalize
 
-RIGHT_MANAGER
+RIGHT_MANAGER	; Same logic, but has a rotation of display.
     CLRF    VALUE
     
     BTFSC   SNKPOS0, _N
-    GOTO    JUST_RIGHT
+    GOTO    JUST_RIGHT	; Left Rotate display and just goes to east
     BTFSC   SNKPOS0, _NE
     GOTO    RIGHT_NE
     BTFSC   SNKPOS0, _SE
     GOTO    RIGHT_SE
     BTFSC   SNKPOS0, _S
-    GOTO    JUST_RIGHT
+    GOTO    JUST_RIGHT	; Left Rotate display and just goes to east
     BTFSC   SNKPOS0, _SW
     GOTO    RIGHT_SW
     BTFSC   SNKPOS0, _NW
     GOTO    RIGHT_NW
     BTFSC   SNKPOS0, _C
-    GOTO    JUST_RIGHT
+    GOTO    JUST_RIGHT	; Left Rotate display and just goes to east
 END_RIGHT
     BSF	    HEAD, HOR
     CALL    SET_POS
     RETURN
 
-RR_DSP	    ; vai p display a direita
-    BTFSS   HEAD, HOR	    ; se olha p esquerda
-    RETURN		    ;   n se move
-    BTFSS   SNKDSP0, DSP4P  ; se n esta no DIS4
-    CALL    RR_IF	    ;   vai p display a direita
+RR_DSP	    ; Try go to next display
+    BTFSS   HEAD, HOR	    ; if looking to west
+    RETURN		    ;   don't move
+    BTFSC   SNKDSP0, DSP4P  ; if the snake is at Display 4
+    RETURN		    ;	don't move
+    BTFSS   SNKDSP0, DSP4P  ; else
+    CALL    RR_IF	    ;   Go to next display
     GOTO    END_RIGHT
 RR_IF
-    CALL    SET_DSP
-    RLF	    SNKDSP0, F
+    CALL    SET_DSP	    ; Set tail display to be previous head display
+    RLF	    SNKDSP0, F	    ; Left Rotate the snake display
     RETURN
     
-RIGHT_NE    ; quer ir p direita, estando em nordeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _N	;   vai p norte
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _C	;   vai p centro
-    GOTO    RR_DSP	; vai p display a direita
-RIGHT_SE    ; quer ir p direita, estando em sudeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _C	;   vai p centro
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _S	;   vai p sul
-    GOTO    RR_DSP	; vai p display a direita
-RIGHT_SW    ; quer ir p direita, estando em sudoeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _C	;   vai p centro
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _S	;   vai p sul
-    GOTO    END_RIGHT
-RIGHT_NW    ; quer ir p direita, estando em noroeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _N	;   vai p norte
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _C	;   vai p centro
-    GOTO    END_RIGHT
-JUST_RIGHT
+RIGHT_NE		; Trying to go east at North East
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _N	;   go to North
+    BTFSS   HEAD, VER	; else 
+    BSF	    VALUE, _C	;   go to Center
+    GOTO    RR_DSP	; Try go to next display
+RIGHT_SE		; Trying to go East at South East
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _C	;   go to Center
+    BTFSS   HEAD, VER	; else
+    BSF	    VALUE, _S	;   go to South
+    GOTO    RR_DSP	; Try go to next display
+RIGHT_SW		; Trying to go to east at South West
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _C	;   go to Center
+    BTFSS   HEAD, VER	; else 
+    BSF	    VALUE, _S	;   go to South
+    GOTO    END_RIGHT	; Finalize
+RIGHT_NW		; Trying to go to east at North West
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _N	;   go to North
+    BTFSS   HEAD, VER	; else 
+    BSF	    VALUE, _C	;   got to Center
+    GOTO    END_RIGHT	; Finalize
+JUST_RIGHT  ; Just goes to East Display without changing position (middle positions)
     MOVFW   SNKPOS0
     MOVWF   VALUE
     GOTO    RR_DSP
 
-LEFT_MANAGER
+LEFT_MANAGER ; Same Logic of Right, however for the west movement
     CLRF   VALUE
     
     BTFSC   SNKPOS0, _N
@@ -313,70 +366,75 @@ END_LEFT
     CALL    SET_POS
     RETURN
 
-RL_DSP	    ; vai p display a direita
-    BTFSC   HEAD, HOR	    ; se olha p direita
-    RETURN		    ;   n se move
-    BTFSS   SNKDSP0, DSP1P  ; se n esta no DIS1
-    CALL    RL_IF	    ;   vai p display a esquerda
-    GOTO    END_LEFT
+RL_DSP			    ; Try go to previous display
+    BTFSC   HEAD, HOR	    ; if looking at East
+    RETURN		    ;   don't move
+    BTFSC   SNKDSP0, DSP1P  ; else if at Display 1
+    RETURN		    ;	don't move
+    BTFSS   SNKDSP0, DSP1P  ; else 
+    CALL    RL_IF	    ;   go to previous display
+    GOTO    END_LEFT	    ; Finalize
 RL_IF
-    CALL    SET_DSP
-    RRF	    SNKDSP0, F
+    CALL    SET_DSP	    ; Set tail display to be previous head
+    RRF	    SNKDSP0, F	    ; Right Rotate display
     RETURN
 
-LEFT_NE    ; quer ir p esquerda, estando em nordeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _N	;   vai p norte
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _C	;   vai p centro
+LEFT_NE			; Trying to go west at North East
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _N	;   go to North
+    BTFSS   HEAD, VER	; else 
+    BSF	    VALUE, _C	;   go to Center
     GOTO    END_LEFT
-LEFT_SE    ; quer ir p esquerda, estando em sudeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _C	;   vai p centro
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _S	;   vai p sul
+LEFT_SE			; Trying to go west at South East
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _C	;   go to Center
+    BTFSS   HEAD, VER	; else
+    BSF	    VALUE, _S	;   go to South
     GOTO    END_LEFT
-LEFT_SW    ; quer ir p esquerda, estando em sudoeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _C	;   vai p centro
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _S	;   vai p sul
-    GOTO    RL_DSP	; vai p display a esquerda
-LEFT_NW    ; quer ir p esquerda, estando em noroeste
-    BTFSC   HEAD, VER	; se olha p cima
-    BSF	    VALUE, _N	;   vai p norte
-    BTFSS   HEAD, VER	; se olha p baixo
-    BSF	    VALUE, _C	;   vai p centro
-    GOTO    RL_DSP	; vai p display a esquerda
+LEFT_SW			; Trying to go west at South West
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _C	;   go to Center
+    BTFSS   HEAD, VER	; else
+    BSF	    VALUE, _S	;   go to South
+    GOTO    RL_DSP	; Change display
+LEFT_NW			; Trying to go west at North West
+    BTFSC   HEAD, VER	; if looking upward
+    BSF	    VALUE, _N	;   go to North
+    BTFSS   HEAD, VER	; else
+    BSF	    VALUE, _C	;   go to Center
+    GOTO    RL_DSP	; go to previous display
 JUST_LEFT
     MOVFW   SNKPOS0
     MOVWF   VALUE
     GOTO    RL_DSP
     
 SNKMOV
-    ; UP
+    ; if up arrow pressed, manages up movement
     BTFSC   DIR, UDIR
     CALL    UP_MANAGER
     
-    ; DOWN
+    ; if down arrow pressed, manages down movement
     BTFSC   DIR, DDIR
     CALL    DOWN_MANAGER
     
-    ; RIGHT
+    ; if right arrow pressed, manages right movement
     BTFSC   DIR, RDIR
     CALL    RIGHT_MANAGER
     
-    ; LEFT
+    ; if left arrow pressed, manages left movement
     BTFSC   DIR, LDIR
     CALL    LEFT_MANAGER
     
+    ; Clear all positions
     CLRF    DSP1
     CLRF    DSP2
     CLRF    DSP3
     CLRF    DSP4
 
+    ; Move snake head position to W
     MOVFW   SNKPOS0
     
+    ; Check which display the snake head is
     BTFSC   SNKDSP0, DSP1P
     CALL    MNG_DSP1
     
@@ -389,10 +447,12 @@ SNKMOV
     BTFSC   SNKDSP0, DSP4P
     CALL    MNG_DSP4
  
+    ; Move snake tail position to W
     MOVFW   SNKPOS1
     
+    ; Check which display the tail position is
     BTFSC   SNKDSP1, DSP1P
-    IORWF   DSP1
+    IORWF   DSP1	; inclusive or to add the tail position to display
     BTFSC   SNKDSP1, DSP2P
     IORWF   DSP2
     BTFSC   SNKDSP1, DSP3P
@@ -402,11 +462,11 @@ SNKMOV
     
     RETURN
 
-MNG_DSP1
-    MOVWF   DSP1
-    BTFSC   FOOD, DSP1P
-    CALL    GETFOOD
-    RETURN
+MNG_DSP1		; With the head position in W
+    MOVWF   DSP1	; Moves W to Display
+    BTFSC   FOOD, DSP1P ; Check if there's a food in this display
+    CALL    GETFOOD	    ; Then get the food
+    RETURN		
     
 MNG_DSP2
     MOVWF   DSP2
@@ -427,110 +487,114 @@ MNG_DSP4
     RETURN
     
 ;***************** FOOD LOGIC ******************
-SHOWFOOD
-    BTFSC   FOOD, DSP1P
-    BSF     DSP1, _DOT
+SHOWFOOD ; check in which display the food is
+    BTFSC   FOOD, DSP1P	; if display 1
+    BSF     DSP1, _DOT	; set the dot bit
     
-    BTFSC   FOOD, DSP2P
-    BSF     DSP2, _DOT
+    BTFSC   FOOD, DSP2P	; if display 2
+    BSF     DSP2, _DOT	; set the dot bit
     
-    BTFSC   FOOD, DSP3P
-    BSF     DSP3, _DOT
+    BTFSC   FOOD, DSP3P	; if display 3
+    BSF     DSP3, _DOT	; set the dot bit
     
-    BTFSC   FOOD, DSP4P
-    BSF     DSP4, _DOT
+    BTFSC   FOOD, DSP4P	; if display 4
+    BSF     DSP4, _DOT	; set the dot bit
     RETURN
     
-CONFIG_INTER
+CONFIG_INTER ; timer interruption config
     BANK1
     CLRF    TRISD
     
-    BCF     OPTION_REG, PSA; HABILITA PSA PRO TIMER 0
-    BSF     OPTION_REG, PS2
+    BCF     OPTION_REG, PSA ; set PSA flag to 0, to activate timer0
+    BSF     OPTION_REG, PS2 
     BSF     OPTION_REG, PS1
-    BSF     OPTION_REG, PS0
+    BSF     OPTION_REG, PS0 ; set the time rate to be 256
     BANK0
     
-    MOVLW   D'12'
+    MOVLW   D'12' ; set the TMR0 to 12
     MOVWF   TMR0
     
-    MOVLW   TMRVAL
+    MOVLW   TMRVAL  ; set a auxiliar value
     MOVWF   AUXC
  
-    BCF     INTCON, TMR0IF
-    BSF	    INTCON, TMR0IE
-    BSF	    INTCON, GIE
+    BCF     INTCON, TMR0IF  ; clear the timer interruption flag
+    BSF	    INTCON, TMR0IE  ; enable the timer interruption
+    BSF	    INTCON, GIE	    ; enable the global interruption
     RETURN
     
-RNDFOOD
-    BCF	    INTCON, TMR0IF
+RNDFOOD ; get a pseudo-random food position
+    BCF	    INTCON, TMR0IF ; clear the timer interruption flag
     
-    RRF     NXTF, 1
-    BTFSC   NXTF, 1
-    CALL    CEILFOOD
-    BTFSC   NXTF, 0
-    CALL    CEILFOOD
-    BTFSC   NXTF, 7
-    CALL    CEILFOOD
-    BTFSC   NXTF, 6
-    CALL    CEILFOOD
-    
+    ; decrements auxc
     DECFSZ  AUXC
     RETURN
     
+    ; shift right next food bit
+    RRF     NXTF, 1
+    ; clamp the next food to be between 2 and 5
+    BTFSC   NXTF, 1
+    CALL    CLAMPFOOD
+    BTFSC   NXTF, 0
+    CALL    CLAMPFOOD
+    BTFSC   NXTF, 7
+    CALL    CLAMPFOOD
+    BTFSC   NXTF, 6
+    CALL    CLAMPFOOD
+    
+    ; Reset auxiliar variable
     MOVLW   TMRVAL
     MOVWF   AUXC
     
     RETURN
 
-CEILFOOD
+CLAMPFOOD ; Indeed, it just ceil to 4
     CLRF    NXTF
-    BSF     NXTF, DSP4P
+    BSF     NXTF, DSP4P 
     RETURN
     
-GETFOOD
+GETFOOD ; attribute the next food value
     MOVFW   NXTF
     MOVWF   FOOD
-    CALL    CEILFOOD
+    CALL    CLAMPFOOD
     RETURN
     
 ;*******************************************************************************
     
-DISPLAY
-    BANK1
+DISPLAY	    ; manages the 7 segment display
+    BANK1   ; set the right bank
     CLRF    TRISA
     CLRF    TRISD
     BANK0
     
-    MOVLW   DSP4E
+    MOVLW   DSP4E ; set display 4
     MOVWF   PORTA
     MOVFW   DSP4
     MOVWF   PORTD
     CALL    DELAY_2MS
     
-    MOVLW   DSP3E
+    MOVLW   DSP3E ; set display 3
     MOVWF   PORTA
     MOVFW   DSP3
     MOVWF   PORTD
     CALL    DELAY_2MS
     
-    MOVLW   DSP2E
+    MOVLW   DSP2E ; set display 2
     MOVWF   PORTA
     MOVFW   DSP2
     MOVWF   PORTD
     CALL    DELAY_2MS
     
-    MOVLW   DSP1E
+    MOVLW   DSP1E ; set display 1
     MOVWF   PORTA
     MOVFW   DSP1
     MOVWF   PORTD
     CALL    DELAY_2MS
     RETURN
     
-KBRD_READ
-    CALL    KBRD_CONFIG
+KBRD_READ ; push-button keyboard read
+    CALL    KBRD_CONFIG ; configurate the keyboard
     
-    BCF	    PORTB, RB0
+    BCF	    PORTB, RB0 
     CALL    DELAY_2MS
     BTFSS   TRISD, RD2	; left
     CALL    PRESS_LEFT
@@ -556,28 +620,28 @@ KBRD_READ
     CALL    DELAY_2MS
     RETURN
 
-PRESS_UP
-    CLRF    DIR
+PRESS_UP ; if pressed 2 (up)
+    CLRF    DIR ; set the new direction
     BSF	    DIR, UDIR
-    CALL    SNKMOV
+    CALL    SNKMOV ; moves the snake
     RETURN
-PRESS_DOWN
-    CLRF    DIR
+PRESS_DOWN ; if pressed 8 (down)
+    CLRF    DIR ; set the new direction
     BSF	    DIR, DDIR
-    CALL    SNKMOV
+    CALL    SNKMOV ; moves the snake
     RETURN
-PRESS_RIGHT
-    CLRF    DIR
+PRESS_RIGHT ; if pressed 6 (right)
+    CLRF    DIR ; set the new direction
     BSF	    DIR, RDIR
-    CALL    SNKMOV
+    CALL    SNKMOV ; moves the snake
     RETURN
-PRESS_LEFT
-    CLRF    DIR
+PRESS_LEFT ; if pressed 4 (left)
+    CLRF    DIR ; set the new direction
     BSF	    DIR, LDIR
-    CALL    SNKMOV
+    CALL    SNKMOV ; moves the snake
     RETURN
     
-KBRD_CONFIG
+KBRD_CONFIG ; keyboard configuration
     BANK1
     CLRF    TRISB
     MOVLW   B'00001111'
@@ -587,7 +651,7 @@ KBRD_CONFIG
     BANK0
     RETURN
     
-DELAY_2MS
+DELAY_2MS ; delay
     CALL    DELAY_1MS
     CALL    DELAY_1MS
     RETURN
@@ -606,30 +670,30 @@ DELAY_LOOP
 MAIN_PROG CODE
 
 START
-    SNK_RST
-    CALL    CONFIG_INTER
-    CALL    SNKMOV
+    SNK_RST ; reset the snake to his initial state
+    CALL    CONFIG_INTER ; configurate the interruption
+    CALL    SNKMOV ; make the first move
     
-    MOVLW   D'1'
+    MOVLW   D'1' ; set the keyboard iterator
     MOVWF   KBRDIT
-    MOVLW   D'16'
+    MOVLW   D'16' ; set the display iterator
     MOVWF   DSPIT
  
 KBRD_LOOP
-    CALL    KBRD_READ
-    DECFSZ  KBRDIT
-    GOTO    KBRD_LOOP
-    MOVLW   D'1'
+    CALL    KBRD_READ ; read keyboard
+    DECFSZ  KBRDIT ; count iterator
+    GOTO    KBRD_LOOP ; loop keyboard until iterator goes to 0
+    MOVLW   D'1' ; reset
     MOVWF   KBRDIT
-    GOTO    DSP_LOOP
+    GOTO    DSP_LOOP ; go to display
     
 DSP_LOOP
-    CALL    DISPLAY
-    CALL    SHOWFOOD
-    DECFSZ  DSPIT
-    GOTO    DSP_LOOP
-    MOVLW   D'16'
+    CALL    DISPLAY ; write display values
+    CALL    SHOWFOOD ; show the food bit
+    DECFSZ  DSPIT ; count iterator
+    GOTO    DSP_LOOP ; loop display until iterator goes to 0
+    MOVLW   D'16' ; reset
     MOVWF   DSPIT
-    GOTO    KBRD_LOOP
+    GOTO    KBRD_LOOP ; go to keyboard
     
     END
