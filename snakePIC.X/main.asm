@@ -70,7 +70,20 @@ _NW	EQU	D'5'
 _C	EQU	D'6'
 ; Dot (food) display position
 _DOT	EQU	D'7'
- 
+; LCD on
+L_ON	EQU	B'00001111'
+; LCD off
+L_OFF	EQU	B'00001000'
+; Clear the LCD
+L_CLR	EQU	B'00000001'
+; Line 1
+L_L1	EQU	B'10000000'
+; Line 2
+L_L2	EQU	B'11000000'
+L_CR	EQU	B'00001111'
+L_NCR	EQU	B'00001100'
+L_CFG	EQU	B'00111000'
+	
 ; Varaibles declaration
 GPR_VAR	UDATA
 ; Byte to be set on PORTD for display 1
@@ -107,6 +120,8 @@ FOOD    RES	1
 NXTF    RES	1
 ; A auxiliary counter for timer interruption
 AUXC    RES	1
+; ms counter
+CMS	RES	1
 	
 ;*******************************************************************************
 ; Reset Vector
@@ -140,7 +155,71 @@ BANK1	MACRO ; Bank 1 - 01
     BCF	    STATUS, RP1
     BSF	    STATUS, RP0
     ENDM
+
+;*******************************************************************************
+; LCD
+;*******************************************************************************
+  
+DELAY_MS    MACRO   TIME
+    MOVFW   TIME
+    MOVWF   CMS
+    GOTO    DYN_DELAY
+    ENDM
+; set the RE1 bit in PORTE
+SET_LENA    MACRO
+    BSF	    PORTE, RE1
+    ENDM
+CLR_LENA    MACRO
+    BCF	    PORTE, RE1
+    ENDM
+; set the RE2 bit in PORTE
+SET_LDAT    MACRO
+    BSF	    PORTE, RE2
+    ENDM
+CLR_LDAT    MACRO
+    BCF	    PORTE, RE2
+    ENDM
+  
+LCD_INIT MACRO
+    CLR_LENA
+    CLR_LDAT
+    DELAY_MS	D'20'
+    SET_LENA
     
+    LCD_CMD L_CFG
+    DELAY_MS	D'5'
+    LCD_CMD L_CFG
+    DELAY_MS	D'1'
+    LCD_CMD L_CFG
+    LCD_CMD L_OFF
+    LCD_CMD L_ON
+    LCD_CMD L_CLR
+    LCD_CMD L_CFG
+    LCD_CMD L_L1
+    ENDM
+LCD_WR	MACRO VAL
+    MOVFW   VAL
+    MOVWF   PORTD
+    ENDM
+LCD_CMD	MACRO VAL
+    SET_LENA
+    LCD_WR  VAL
+    CLR_LDAT
+    DELAY_MS	D'3'
+    CLR_LENA
+    DELAY_MS	D'3'
+    SET_LENA
+    ENDM
+LCD_DAT	MACRO VAL
+    SET_LENA
+    LCD_WR  VAL
+    SET_LDAT
+    DELAY_MS	D'3'
+    CLR_LENA
+    DELAY_MS	D'3'
+    SET_LENA
+    ENDM
+
 ; Resets snake values
 SNK_RST MACRO
     ; Clear snake head position and set initial value
@@ -651,6 +730,11 @@ KBRD_CONFIG ; keyboard configuration
     BANK0
     RETURN
     
+DYN_DELAY
+    CALL    DELAY_1MS
+    DECFSZ  CMS
+    GOTO    DYN_DELAY
+    RETURN
 DELAY_2MS ; delay
     CALL    DELAY_1MS
     CALL    DELAY_1MS
@@ -670,6 +754,19 @@ DELAY_LOOP
 MAIN_PROG CODE
 
 START
+    ;BANK1
+    ;CLRF    TRISD
+    ;CLRF    TRISE
+    ;BANK0
+    
+    ;LCD_INIT
+    ;LCD_CMD L_CLR
+    ;LCD_CMD L_L1
+    
+    ;LCD_DAT D'30'
+    ;LCD_DAT D'31'
+    ;LCD_DAT D'60'
+    
     SNK_RST ; reset the snake to his initial state
     CALL    CONFIG_INTER ; configurate the interruption
     CALL    SNKMOV ; make the first move
